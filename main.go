@@ -1,10 +1,15 @@
 package main
-
+//some caveats to get the SGN package installed
+/*
+	https://github.com/keystone-engine/keystone/blob/master/docs/COMPILE-NIX.md
+	https://github.com/keystone-engine/keystone/blob/master/docs/COMPILE-NIX.md
+ */
 import (
 	"debug/elf"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 )
 
 func checkErr(e error){
@@ -12,6 +17,9 @@ func checkErr(e error){
 		panic(e)
 	}
 }
+
+const PYTHON3 = 3
+const PYTHON2 = 2
 
 func findRet(myBytes []byte) int{
 
@@ -45,15 +53,16 @@ func printMenu(myBytes []byte, endLocation int){
 	userInput := 0
 	for keepGoing{
 		fmt.Println("Please choose an option below: ")
-		fmt.Println("\t1.)Print raw bytes")
-		fmt.Println("\t2.)Print bytes with leading '\\x'.")
+		fmt.Println("\t1.)Print raw opcodes")
+		fmt.Println("\t2.)Print opcodes with leading '\\x'.")
 		fmt.Println("\t3.)Print Python2 code.")
 		fmt.Println("\t4.)Print Python3 code.")
 		fmt.Println("\t5.)Print C code.")
+		fmt.Println("\t6.)Encode bytes.")
 		fmt.Printf("Please enter your choice: ")
 		fmt.Scan(&userInput)
 
-		if userInput >= 1 && userInput <= 5{
+		if userInput >= 1 && userInput <= 6{
 			keepGoing = false
 		}
 	}
@@ -61,18 +70,33 @@ func printMenu(myBytes []byte, endLocation int){
 	switch userInput {
 	case 1:
 		printRaw(myBytes, endLocation)
+		println("\n")
 		break
 	case 2:
 		printFormat(myBytes, endLocation)
+		println("\n")
 		break
 	case 3:
 		printPython(myBytes, endLocation, 2)
+		println("\n")
 		break
 	case 4:
 		printPython(myBytes, endLocation, 3)
+		println("\n")
 		break
 	case 5:
 		printC(myBytes, endLocation)
+		println("\n")
+		break
+	case 6:
+		err := os.WriteFile("TEMP_plain.dat", myBytes, 0667)
+		checkErr(err)
+		cmd := exec.Command("/home/user/go/bin/sgn", "-a", "64", "-o", "test", "TEMP_plain.dat")
+		err = cmd.Run()
+		checkErr(err)
+		cmd = exec.Command("rm", "TEMP_plain.dat")
+		err = cmd.Run()
+		checkErr(err)
 	default:
 		fmt.Println("ERROR: Shouldn't get here.")
 		break
@@ -83,21 +107,48 @@ func printRaw(myBytes []byte, endLocation int){
 	for i := range myBytes[:endLocation+1]{
 		fmt.Printf("%02x", myBytes[i] )
 	}
-	println("\n")
 }
 
 func printFormat(myBytes []byte,   endLocation int){
 	for i := range myBytes[:endLocation+1]{
 		fmt.Printf("\\x%02x", myBytes[i] )
 	}
-	println("\n")
 }
 
 func printPython(myBytes []byte,  endLocation int, version int){
-	
+
+	switch version{
+	case PYTHON3:
+		print("opCodes='")
+		printFormat(myBytes, endLocation)
+		print("'\n")
+		print("print(opCodes, end=\"\")")
+		break
+	case PYTHON2:
+		print("import sys\n\n")
+		print("opCodes = '")
+		printFormat(myBytes, endLocation)
+		print("'\n")
+		print("sys.stdout.write(opCodes)")
+		break
+	default:
+		fmt.Println("Python version not supported")
+		break
+	}
 }
 
 func printC(myBytes []byte, endLocation int){
+	print("unsigned char opCodes[", len(myBytes), "] = {")
+	for i := range myBytes{
+		fmt.Printf("'\\x%02x'", myBytes[i])
+		if i != len(myBytes)-1{
+			fmt.Printf(",")
+		}
+	}
+	print("};\n\n")
+	print("for(int i = 0; i < ",len(myBytes),"; ++i){\n")
+	print("\tprintf(\"%02x\", opCodes[i]);\n")
+	print("}")
 
 }
 

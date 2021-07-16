@@ -3,6 +3,16 @@
 
 
 void normalFunction(void){
+    unsigned char array[10] = {'\xc0', '\x90'};
+    // for(int i =0; i < 10; ++i){
+    //     array[i] = '\0';
+    // }
+
+//    array[0] = '\xc0';
+
+    for(int i =0; i < 10; ++i){
+        printf("%02x", array[i]);
+    }
 
 }
 
@@ -18,6 +28,7 @@ void __attribute__((naked)) assemblyFunction(void){
 int main(void){
 
     assemblyFunction();
+    normalFunction();
 
     return 0;
 }
